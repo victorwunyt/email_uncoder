@@ -1,0 +1,100 @@
+<html>
+  <head>
+    <!-- import libraries -->
+    <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-2.4.2.js"></script>
+    <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-widgets-2.4.2.min.js"></script>
+    <script type="text/javascript" src="https://cdn.bokeh.org/bokeh/release/bokeh-tables-2.4.2.min.js"></script>
+    <script type="text/javascript" src="https://unpkg.com/@holoviz/panel@0.13.0/dist/panel.min.js"></script>
+
+    <!-- import pyscript -->
+    <link rel="stylesheet" href="https://pyscript.net/alpha/pyscript.css" />
+    <script defer src="https://pyscript.net/alpha/pyscript.js"></script>
+    <py-env>
+        - beautifulSoup4
+        - panel==0.13.1a2
+    </py-env>
+    <title>Python uncoder</title>
+    <style>
+      body, html{margin: 1%;}
+      h1{font-weight:bold;font-size:30px;}
+      .bk-btn.bk-btn-primary{background-color:black;}
+      #download{display:none;}
+    </style>
+    <script type="text/javascript">
+    document.addEventListener('DOMContentLoaded', function() {
+       // ONLY for USER EXPERIENCE
+       // Options for the observer (which mutations to observe)
+       const config = { attributes: true, childList: true, subtree: true };
+       const upload = document.getElementById('upload')
+       
+       // Callback function to execute when mutations are observed
+       const callback = (mutationList, observer) => {
+        for (const mutation of mutationList) {
+          if (mutation.type === "childList" && document.querySelector('.bk.bk-btn.bk-btn-primary').innerHTML == 'Upload') {
+              const el = document.querySelector('.bk.bk-btn.bk-btn-primary')
+              el.addEventListener('click', () => {
+                  document.querySelector('#download').style.display = "flex";
+              })
+          } 
+        }
+      };
+
+      // Create an observer instance linked to the callback function
+      const observeEl = new MutationObserver(callback);
+
+      // Start observing the target node for configured mutations
+      observeEl.observe(upload, config);
+    }, false);
+
+    </script>
+  </head>
+  <body>
+    <h1>Python email uncoder</h1>
+    <div id="fileinput"></div>
+    <div id="upload"></div>
+    <div id="download"></div>
+
+    <py-script>
+        # TODO handle multiple files improvements UX/UI
+        #      DOCTYPE search can be inconsistent
+        import quopri #Encode and decode MIME quoted-printable data https://docs.python.org/3/library/quopri.html
+        import io   
+        import bs4
+        #import asyncio
+        import panel as pn
+        import re
+        from panel.io.pyodide import show
+        from io import StringIO
+        
+        #Declare constants
+        TEMP_FILE = []
+        HTML_PRETTY = []
+        DOCTYPE = "<=21DOCTYPE"
+
+        fileInput = pn.widgets.FileInput(accept='.eml')
+        uploadButton = pn.widgets.Button(name='Upload', button_type = 'primary')
+        file_download_html = pn.widgets.Button(name='Read', button_type = 'primary')
+        
+        def emailUncode(event):
+            if fileInput.value is not None:
+              #split string on the doctype, remove unwanted text
+              stringify = fileInput.value.decode('utf-8')
+              stringfiy = stringify[stringify.rindex(DOCTYPE):].encode()  
+              #generate decoded data 
+              TEMP_FILE.append(quopri.decodestring(stringfiy).decode('utf-8'))
+              #TEMP_FILE.append(quopri.decodestring(fileInput.value).decode('utf-8'))
+              HTML_PRETTY.append(bs4.BeautifulSoup(TEMP_FILE[0], "html.parser").prettify())
+              #print(fileInput.value.decode() )
+
+        def get_html():
+          return StringIO(HTML_PRETTY[0])
+
+        uploadButton.on_click(emailUncode)
+        file_download_html = pn.widgets.FileDownload(filename="output_pretty.html", callback=get_html, button_type="primary")
+
+        await show(fileInput, 'fileinput')
+        await show(uploadButton, 'upload')
+        await show(file_download_html, 'download')
+    </py-script>
+  </body>
+</html>
