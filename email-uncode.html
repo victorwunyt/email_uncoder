@@ -15,7 +15,8 @@
     </py-env>
     <title>Python uncoder</title>
     <style>
-      body, html{margin: 1%;}
+      body, html{margin: 1%}
+      body{cursor:wait;}
       h1{font-weight:bold;font-size:30px;}
       .bk-btn.bk-btn-primary{background-color:black;}
       #download{display:none;}
@@ -32,9 +33,8 @@
         for (const mutation of mutationList) {
           if (mutation.type === "childList" && document.querySelector('.bk.bk-btn.bk-btn-primary').innerHTML == 'Upload') {
               const el = document.querySelector('.bk.bk-btn.bk-btn-primary')
-              el.addEventListener('click', () => {
-                  document.querySelector('#download').style.display = "flex";
-              })
+              console.log("READY")
+              document.body.style.cursor = "default";
           } 
         }
       };
@@ -57,34 +57,43 @@
     <py-script>
         # TODO handle multiple files improvements UX/UI
         #      DOCTYPE search can be inconsistent
+        #      Better overall feedback
         import quopri #Encode and decode MIME quoted-printable data https://docs.python.org/3/library/quopri.html
-        import io   
-        import bs4
+        import io     
+        import bs4    
         #import asyncio
         import panel as pn
         import re
+        import js
         from panel.io.pyodide import show
         from io import StringIO
         
         #Declare constants
         TEMP_FILE = []
         HTML_PRETTY = []
-        DOCTYPE = "<=21DOCTYPE"
+        DOCTYPE = "DOCTYPE"
 
         fileInput = pn.widgets.FileInput(accept='.eml')
         uploadButton = pn.widgets.Button(name='Upload', button_type = 'primary')
         file_download_html = pn.widgets.Button(name='Read', button_type = 'primary')
         
         def emailUncode(event):
-            if fileInput.value is not None:
-              #split string on the doctype, remove unwanted text
-              stringify = fileInput.value.decode('utf-8')
-              stringfiy = stringify[stringify.rindex(DOCTYPE):].encode()  
-              #generate decoded data 
-              TEMP_FILE.append(quopri.decodestring(stringfiy).decode('utf-8'))
-              #TEMP_FILE.append(quopri.decodestring(fileInput.value).decode('utf-8'))
-              HTML_PRETTY.append(bs4.BeautifulSoup(TEMP_FILE[0], "html.parser").prettify())
-              #print(fileInput.value.decode() )
+            try:
+              fileStr = fileInput.value.decode('utf-8')
+              if fileInput.value is not None and fileStr[fileStr.rindex(DOCTYPE):] is not None:
+                result = re.search(r"<=21Doctype|..DOCTYPE", fileStr, re.IGNORECASE)
+                #split string on the doctype, remove unwanted text
+                fileStr = fileStr[fileStr.rindex(result.group()):].encode()  
+                #generate decoded data 
+                TEMP_FILE.append(quopri.decodestring(fileStr).decode('utf-8'))
+                HTML_PRETTY.append(bs4.BeautifulSoup(TEMP_FILE[0], "html.parser").prettify())
+                js.showDownload()
+              else:
+                js.alertErr()
+            except:
+              js.alertErr(event)
+              print("Please upload an eml file that includes proper HTML markup")
+      
 
         def get_html():
           return StringIO(HTML_PRETTY[0])
@@ -96,5 +105,15 @@
         await show(uploadButton, 'upload')
         await show(file_download_html, 'download')
     </py-script>
+
+    <script type="text/javascript">
+      function alertErr() {
+        alert("Please upload an eml file that includes proper HTML markup")
+      }
+
+      function showDownload() {
+        document.querySelector('#download').style.display = "flex";
+      }
+    </script>
   </body>
 </html>
