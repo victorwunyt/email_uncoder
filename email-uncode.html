@@ -13,15 +13,68 @@
         - beautifulSoup4
         - panel==0.13.1a2
     </py-env>
-    <title>Python uncoder</title>
+    <title>Email uncoder</title>
     <style>
       body, html{margin: 1%}
       body{cursor:wait;}
       h1{font-weight:bold;font-size:30px;}
       .bk-btn.bk-btn-primary{background-color:black;}
       #download{display:none;}
+
+      /* Style the tab */
+      .tab {
+        overflow: hidden;
+        border: 1px solid #ccc;
+        background-color: #f1f1f1;
+        margin-top: 25px;
+      }
+
+      /* Style the buttons inside the tab */
+      .tab button {
+        background-color: inherit;
+        float: left;
+        border: none;
+        outline: none;
+        cursor: pointer;
+        padding: 14px 16px;
+        transition: 0.3s;
+        font-size: 17px;
+      }
+
+      /* Change background color of buttons on hover */
+      .tab button:hover {
+        background-color: #ddd;
+      }
+
+      /* Create an active/current tablink class */
+      .tab button.active {
+        background-color: #ccc;
+      }
+
+      /* Style the tab content */
+      .tabcontent {
+        display: none;
+        padding: 6px 12px;
+        border: 1px solid #ccc;
+        border-top: none;
+      }
     </style>
     <script type="text/javascript">
+    //Tab functionality
+    function openContent(evt, contentType) {
+      let i, tabcontent, tablinks;
+      tabcontent = document.getElementsByClassName("tabcontent");
+      for (i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
+      }
+      tablinks = document.getElementsByClassName("tablinks");
+      for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].className = tablinks[i].className.replace(" active", "");
+      }
+      document.getElementById(contentType).style.display = "block";
+      evt.currentTarget.className += " active";
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
        // ONLY for USER EXPERIENCE
        // Options for the observer (which mutations to observe)
@@ -32,9 +85,27 @@
        const callback = (mutationList, observer) => {
         for (const mutation of mutationList) {
           if (mutation.type === "childList" && document.querySelector('.bk.bk-btn.bk-btn-primary').innerHTML == 'Upload') {
-              const el = document.querySelector('.bk.bk-btn.bk-btn-primary')
-              console.log("READY")
+              const input = document.querySelector('input.bk')
               document.body.style.cursor = "default";
+              //on change of file
+              input.addEventListener('change', (event) => {
+                const inputContent = document.querySelector("#input");
+                const [file] = document.querySelector("input[type=file]").files;
+                const reader = new FileReader();
+
+              reader.addEventListener(
+                "load",
+                () => {
+                  // this will then display a text file
+                  inputContent.innerText = reader.result;
+                },
+                false
+              )
+
+              if (file) {
+                reader.readAsText(file);
+              }
+            }, false)
           } 
         }
       };
@@ -49,10 +120,18 @@
     </script>
   </head>
   <body>
-    <h1>Python email uncoder</h1>
+    <h1>Email uncoder</h1>
     <div id="fileinput"></div>
     <div id="upload"></div>
     <div id="download"></div>
+
+  <div class="tab">
+    <button class="tablinks" onclick="openContent(event, 'input')">Input</button>
+    <button class="tablinks" onclick="openContent(event, 'output')">Output</button>
+  </div>
+  
+  <div id="input" class="tabcontent"></div>
+  <div id="output" class="tabcontent"></div>
 
     <py-script>
         # TODO handle multiple files improvements UX/UI
@@ -61,12 +140,14 @@
         import quopri #Encode and decode MIME quoted-printable data https://docs.python.org/3/library/quopri.html
         import io     
         import bs4    
-        #import asyncio
+        import asyncio
         import panel as pn
         import re
         import js
         from panel.io.pyodide import show
+        #from pyodide import create_proxy
         from io import StringIO
+        from js import document
         
         #Declare constants
         TEMP_FILE = []
@@ -83,11 +164,16 @@
               if fileInput.value is not None and fileStr[fileStr.rindex(DOCTYPE):] is not None:
                 result = re.search(r"<=21Doctype|..DOCTYPE", fileStr, re.IGNORECASE)
                 #split string on the doctype, remove unwanted text
-                fileStr = fileStr[fileStr.rindex(result.group()):].encode()  
+                fileStr = fileStr[fileStr.rindex(result.group()):].encode() 
+                if len(TEMP_FILE) > 0:
+                  TEMP_FILE.pop()
+                if len(HTML_PRETTY) > 0:
+                  HTML_PRETTY.pop()
                 #generate decoded data 
                 TEMP_FILE.append(quopri.decodestring(fileStr).decode('utf-8'))
                 HTML_PRETTY.append(bs4.BeautifulSoup(TEMP_FILE[0], "html.parser").prettify())
                 js.showDownload()
+                document.getElementById("output").innerText = HTML_PRETTY[0]
               else:
                 js.alertErr()
             except:
