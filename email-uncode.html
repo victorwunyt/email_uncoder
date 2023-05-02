@@ -127,10 +127,12 @@
 
   <div class="tab">
     <button class="tablinks" onclick="openContent(event, 'input')">Input</button>
+    <button class="tablinks" onclick="openContent(event, 'code')">Code View</button>
     <button class="tablinks" onclick="openContent(event, 'output')">Output</button>
   </div>
   
   <div id="input" class="tabcontent"></div>
+  <div id="code" class="tabcontent"></div>
   <div id="output" class="tabcontent"></div>
 
     <py-script>
@@ -173,7 +175,8 @@
                 TEMP_FILE.append(quopri.decodestring(fileStr).decode('utf-8'))
                 HTML_PRETTY.append(bs4.BeautifulSoup(TEMP_FILE[0], "html.parser").prettify())
                 js.showDownload()
-                document.getElementById("output").innerText = HTML_PRETTY[0]
+                document.getElementById("code").innerText = HTML_PRETTY[0]
+                document.getElementById("output").innerHTML = HTML_PRETTY[0]
               else:
                 js.alertErr()
             except:
